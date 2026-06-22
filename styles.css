@@ -254,7 +254,7 @@ input:focus-visible {
   width: min(1280px, calc(100vw - 28px));
   margin: 14px auto 0;
   display: grid;
-  grid-template-columns: minmax(0, 1.65fr) minmax(320px, 0.8fr);
+  grid-template-columns: minmax(0, 1.7fr) minmax(320px, 0.78fr);
   gap: 16px;
   align-items: start;
 }
@@ -343,7 +343,7 @@ body.theme-dark .connection-offline {
 }
 
 .local-tile {
-  min-height: 620px;
+  min-height: 700px;
 }
 
 .tile-badge {
@@ -394,13 +394,19 @@ body.theme-dark .connection-offline {
 
 .remote-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 16px;
   align-content: start;
 }
 
 .remote-tile {
-  min-height: 240px;
+  min-height: 280px;
+}
+
+.remote-tile.pinned {
+  grid-column: 1 / -1;
+  min-height: 360px;
+  order: -1;
 }
 
 .participant-meta {
@@ -417,11 +423,12 @@ body.theme-dark .connection-offline {
   border-radius: 16px;
   background: linear-gradient(180deg, rgba(7, 13, 11, 0.2), rgba(7, 13, 11, 0.86));
   color: #ffffff;
-  min-height: 70px;
+  min-height: 78px;
 }
 
 .participant-name {
   font-weight: 800;
+  font-size: 16px;
 }
 
 .participant-state {
@@ -432,7 +439,7 @@ body.theme-dark .connection-offline {
 .participant-word {
   max-width: 42%;
   text-align: right;
-  font-size: 18px;
+  font-size: 19px;
   font-weight: 800;
   line-height: 1.15;
   color: #ecfff7;
@@ -571,11 +578,15 @@ canvas {
   }
 
   .local-tile {
-    min-height: 380px;
+    min-height: 420px;
   }
 
   .remote-tile {
-    min-height: 220px;
+    min-height: 240px;
+  }
+
+  .remote-tile.pinned {
+    min-height: 280px;
   }
 
   .footer {

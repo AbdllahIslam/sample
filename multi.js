@@ -46,6 +46,7 @@
   const remoteTiles = {};
   const roomParticipants = new Set();
   let joinedRoom = "";
+  let activeSpeakerSid = "";
 
   const defaultRoom = (window.location.hash || "").replace(/^#/, "").trim();
   if (roomInput && defaultRoom) {
@@ -82,6 +83,19 @@
 
   setConnectionState(false);
   updateParticipantCount();
+
+  function setActiveSpeaker(sid) {
+    activeSpeakerSid = sid || "";
+
+    const localTile = document.querySelector(".local-tile");
+    if (localTile) {
+      localTile.classList.toggle("pinned", activeSpeakerSid === socket.id);
+    }
+
+    Object.entries(remoteTiles).forEach(([remoteSid, tile]) => {
+      tile.classList.toggle("pinned", remoteSid === activeSpeakerSid);
+    });
+  }
 
   function setLocalStatus(text) {
     if (localStatus) {
@@ -161,6 +175,7 @@
     remoteGrid.appendChild(tile);
 
     remoteTiles[sid] = tile;
+    tile.classList.toggle("pinned", sid === activeSpeakerSid);
     return tile;
   }
 
@@ -170,6 +185,10 @@
       tile.parentNode.removeChild(tile);
     }
     delete remoteTiles[sid];
+
+    if (activeSpeakerSid === sid) {
+      setActiveSpeaker("");
+    }
   }
 
   function updateRemoteTileState(sid, text) {
@@ -300,6 +319,7 @@
     setConnection(`Connected`);
     socket.emit("join", { room: nextRoom });
     setLocalStatus("In room");
+    updateParticipantCount();
   }
 
   async function leaveRoom(room) {
@@ -322,6 +342,7 @@
 
     roomParticipants.clear();
     joinedRoom = "";
+    setActiveSpeaker("");
     setConnectionState(false);
     setConnection("Disconnected");
     updateParticipantCount();
@@ -331,6 +352,7 @@
   function broadcastDetectedWord(word) {
     const cleanWord = normalizeWord(word);
     setLocalDetectedWord(cleanWord);
+    setActiveSpeaker(socket.id);
 
     if (cleanWord && joinedRoom) {
       socket.emit("word-update", {
@@ -438,6 +460,7 @@
 
     if (sid === socket.id) {
       setLocalDetectedWord(word);
+      setActiveSpeaker(socket.id);
       return;
     }
 
@@ -458,6 +481,7 @@
     Object.keys(remoteTiles).forEach(removeRemoteTile);
     roomParticipants.clear();
     joinedRoom = "";
+    setActiveSpeaker("");
     setConnectionState(false);
     setConnection("Disconnected");
     updateParticipantCount();
