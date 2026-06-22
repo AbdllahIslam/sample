@@ -4,4 +4,4 @@ flask-socketio
 numpy
 h5py
 tensorflow
-gunicorn[eventlet]
+gunicorn
