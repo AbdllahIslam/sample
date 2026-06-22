@@ -9,8 +9,6 @@ import tensorflow as tf
 from tensorflow.keras.models import load_model, Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout, BatchNormalization
 import os
-  port = int(os.environ.get("PORT", 5000))
-  socketio.run(app, host="0.0.0.0", port=port, debug=False, use_reloader=False)
 
 BASE_DIR = Path(__file__).resolve().parent
 
