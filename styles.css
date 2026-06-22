@@ -280,6 +280,14 @@ input:focus-visible {
   margin-bottom: 18px;
 }
 
+.stage-metrics {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .stage-header h1 {
   margin: 8px 0 0;
   font-size: clamp(28px, 3vw, 42px);
@@ -297,6 +305,26 @@ input:focus-visible {
   border: 1px solid var(--border-strong);
   color: var(--accent-deep);
   font-weight: 700;
+}
+
+.participants-pill {
+  color: var(--text);
+}
+
+.connection-online {
+  background: rgba(52, 211, 153, 0.18);
+  border-color: rgba(52, 211, 153, 0.3);
+  color: #047857;
+}
+
+.connection-offline {
+  background: rgba(148, 163, 184, 0.16);
+  border-color: rgba(148, 163, 184, 0.22);
+  color: #475569;
+}
+
+body.theme-dark .connection-offline {
+  color: #cbd5e1;
 }
 
 .participant-grid {

@@ -1,8 +1,25 @@
 (function () {
+  const BACKEND_ORIGIN = (() => {
+    try {
+      const currentUrl = new URL(window.location.href);
+      const fromQuery = currentUrl.searchParams.get("backend");
+      const fromStorage = localStorage.getItem("signai-backend-url");
+      const resolved = fromQuery || fromStorage || window.location.origin;
+
+      if (fromQuery) {
+        localStorage.setItem("signai-backend-url", fromQuery);
+      }
+
+      return resolved.replace(/\/$/, "");
+    } catch (error) {
+      return window.location.origin;
+    }
+  })();
+
   let socket;
 
   try {
-    socket = typeof io === "function" ? io() : null;
+    socket = typeof io === "function" ? io(BACKEND_ORIGIN) : null;
   } catch (error) {
     console.error("Socket.IO client not available:", error);
     socket = null;
@@ -21,11 +38,13 @@
   const leaveRoomBtn = document.getElementById("leaveRoomBtn");
   const remoteGrid = document.getElementById("remoteVideos");
   const connectionPill = document.getElementById("connectionPill");
+  const participantsPill = document.getElementById("participantsPill");
   const localStatus = document.getElementById("localStatus");
   const localDetectedWord = document.getElementById("localDetectedWord");
 
   const peers = {};
   const remoteTiles = {};
+  const roomParticipants = new Set();
   let joinedRoom = "";
 
   const defaultRoom = (window.location.hash || "").replace(/^#/, "").trim();
@@ -41,6 +60,28 @@
       window.updateConnectionPill(text);
     }
   }
+
+  function setConnectionState(isConnected) {
+    if (!connectionPill) {
+      return;
+    }
+
+    connectionPill.textContent = isConnected ? "Connected" : "Disconnected";
+    connectionPill.classList.toggle("connection-online", isConnected);
+    connectionPill.classList.toggle("connection-offline", !isConnected);
+  }
+
+  function updateParticipantCount() {
+    if (!participantsPill) {
+      return;
+    }
+
+    const count = joinedRoom ? roomParticipants.size : 0;
+    participantsPill.textContent = `Participants: ${count}`;
+  }
+
+  setConnectionState(false);
+  updateParticipantCount();
 
   function setLocalStatus(text) {
     if (localStatus) {
@@ -255,7 +296,8 @@
       window.location.hash = nextRoom;
     }
 
-    setConnection(`Joining: ${nextRoom}`);
+    setConnectionState(true);
+    setConnection(`Connected`);
     socket.emit("join", { room: nextRoom });
     setLocalStatus("In room");
   }
@@ -278,8 +320,11 @@
 
     Object.keys(remoteTiles).forEach(removeRemoteTile);
 
+    roomParticipants.clear();
     joinedRoom = "";
-    setConnection("Not in a room");
+    setConnectionState(false);
+    setConnection("Disconnected");
+    updateParticipantCount();
     setLocalStatus("Ready");
   }
 
@@ -296,11 +341,8 @@
   }
 
   socket.on("connect", () => {
-    if (joinedRoom) {
-      setConnection(`In room: ${joinedRoom}`);
-    } else {
-      setConnection("Not in a room");
-    }
+    setConnectionState(true);
+    setConnection(joinedRoom ? "Connected" : "Connected");
   });
 
   socket.on("room-peers", async (data) => {
@@ -311,8 +353,15 @@
       joinedRoom = room;
     }
 
-    setConnection(`In room: ${room || joinedRoom}`);
+    if (data.sid) {
+      roomParticipants.add(data.sid);
+    }
+    peersList.forEach((sid) => roomParticipants.add(sid));
+
+    setConnectionState(true);
+    setConnection(`Connected`);
     setLocalStatus("In room");
+    updateParticipantCount();
 
     for (const sid of peersList) {
       await connectToPeer(sid, true);
@@ -325,8 +374,10 @@
       return;
     }
 
+    roomParticipants.add(sid);
     ensureRemoteTile(sid);
     updateRemoteTileState(sid, "Joined");
+    updateParticipantCount();
   });
 
   socket.on("signal", async (data) => {
@@ -377,6 +428,8 @@
     }
 
     removeRemoteTile(sid);
+    roomParticipants.delete(sid);
+    updateParticipantCount();
   });
 
   socket.on("word-update", (data) => {
@@ -403,8 +456,11 @@
     });
 
     Object.keys(remoteTiles).forEach(removeRemoteTile);
+    roomParticipants.clear();
     joinedRoom = "";
-    setConnection("Not in a room");
+    setConnectionState(false);
+    setConnection("Disconnected");
+    updateParticipantCount();
     setLocalStatus("Ready");
   });
 

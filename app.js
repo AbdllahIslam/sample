@@ -8,6 +8,23 @@ const statusElement = document.getElementById("status");
 const connectionPill = document.getElementById("connectionPill");
 const themeToggleBtn = document.getElementById("themeToggleBtn");
 
+const BACKEND_ORIGIN = (() => {
+  try {
+    const currentUrl = new URL(window.location.href);
+    const fromQuery = currentUrl.searchParams.get("backend");
+    const fromStorage = localStorage.getItem("signai-backend-url");
+    const resolved = fromQuery || fromStorage || window.location.origin;
+
+    if (fromQuery) {
+      localStorage.setItem("signai-backend-url", fromQuery);
+    }
+
+    return resolved.replace(/\/$/, "");
+  } catch (error) {
+    return window.location.origin;
+  }
+})();
+
 // Same shape as the Python model
 const SEQUENCE_LENGTH = 15;
 const NUM_FEATURES = 225;
@@ -556,7 +573,7 @@ async function sendPrediction() {
   isPredicting = true;
 
   try {
-    const response = await fetch("/predict", {
+    const response = await fetch(`${BACKEND_ORIGIN}/predict`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"

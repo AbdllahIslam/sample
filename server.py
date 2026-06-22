@@ -21,7 +21,7 @@ NUM_FEATURES = 225
 
 app = Flask(__name__, static_folder=".", static_url_path="")
 CORS(app)
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 room_members = defaultdict(set)
 
 
@@ -103,6 +103,84 @@ def app_js():
     return send_from_directory(".", "app.js")
 
 
+@app.route("/health")
+def health():
+    return jsonify({
+        "ok": True,
+        "model_loaded": True,
+        "input_shape": list(model.input_shape),
+        "output_shape": list(model.output_shape),
+        "classes": len(ACTIONS)
+    })
+
+
+@socketio.on('join')
+def handle_join(data):
+    room = data.get('room')
+    if room:
+        join_room(room)
+        room_members[room].add(request.sid)
+
+        existing_peers = [
+            sid for sid in room_members[room]
+            if sid != request.sid
+        ]
+
+        emit('room-peers', {
+            'room': room,
+            'sid': request.sid,
+            'peers': existing_peers
+        })
+
+        emit('peer-joined', {
+            'sid': request.sid,
+            'room': room
+        }, room=room, include_self=False)
+
+
+@socketio.on('signal')
+def handle_signal(data):
+    # data: { 'target': target_sid, 'signal': <offer/answer/ice> }
+    target = data.get('target')
+    signal = data.get('signal')
+    if target and signal is not None:
+        emit('signal', {'source': request.sid, 'signal': signal}, to=target)
+
+
+@socketio.on('leave')
+def handle_leave(data):
+    room = data.get('room')
+    if room:
+        leave_room(room)
+        room_members[room].discard(request.sid)
+        if not room_members[room]:
+            room_members.pop(room, None)
+        emit('peer-left', {'sid': request.sid}, room=room)
+
+
+@socketio.on('word-update')
+def handle_word_update(data):
+    room = data.get('room')
+    word = data.get('word', '')
+    if room:
+        emit('word-update', {
+            'sid': request.sid,
+            'word': word,
+            'room': room
+        }, room=room, include_self=True)
+
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    joined_rooms = [room for room in socket_rooms() if room != request.sid]
+
+    for room in joined_rooms:
+        room_members[room].discard(request.sid)
+        if not room_members[room]:
+            room_members.pop(room, None)
+        emit('peer-left', {'sid': request.sid}, room=room)
+
+
 @app.route("/predict", methods=["POST"])
 def predict():
     data = request.get_json()
@@ -163,69 +241,5 @@ if __name__ == "__main__":
     print("Input shape:", model.input_shape)
     print("Output shape:", model.output_shape)
     print("===================================")
-
-    # Socket.IO signaling handlers for WebRTC peer discovery
-    @socketio.on('join')
-    def handle_join(data):
-        room = data.get('room')
-        if room:
-            join_room(room)
-            room_members[room].add(request.sid)
-
-            existing_peers = [
-                sid for sid in room_members[room]
-                if sid != request.sid
-            ]
-
-            emit('room-peers', {
-                'room': room,
-                'sid': request.sid,
-                'peers': existing_peers
-            })
-
-            emit('peer-joined', {
-                'sid': request.sid,
-                'room': room
-            }, room=room, include_self=False)
-
-    @socketio.on('signal')
-    def handle_signal(data):
-        # data: { 'target': target_sid, 'signal': <offer/answer/ice> }
-        target = data.get('target')
-        signal = data.get('signal')
-        if target and signal is not None:
-            emit('signal', {'source': request.sid, 'signal': signal}, to=target)
-
-    @socketio.on('leave')
-    def handle_leave(data):
-        room = data.get('room')
-        if room:
-            leave_room(room)
-            room_members[room].discard(request.sid)
-            if not room_members[room]:
-                room_members.pop(room, None)
-            emit('peer-left', {'sid': request.sid}, room=room)
-
-    @socketio.on('word-update')
-    def handle_word_update(data):
-        room = data.get('room')
-        word = data.get('word', '')
-        if room:
-            emit('word-update', {
-                'sid': request.sid,
-                'word': word,
-                'room': room
-            }, room=room, include_self=True)
-
-    @socketio.on('disconnect')
-    def handle_disconnect():
-        joined_rooms = [room for room in socket_rooms() if room != request.sid]
-
-        for room in joined_rooms:
-            room_members[room].discard(request.sid)
-            if not room_members[room]:
-                room_members.pop(room, None)
-            emit('peer-left', {'sid': request.sid}, room=room)
-
     port = int(os.environ.get("PORT", 5000))
     socketio.run(app, host="0.0.0.0", port=port, debug=False, use_reloader=False)
