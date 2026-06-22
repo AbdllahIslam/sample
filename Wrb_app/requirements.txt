@@ -1,8 +1,7 @@
 flask
 flask-cors
 flask-socketio
-eventlet
 numpy
 h5py
 tensorflow
-gunicorn
+gunicorn[eventlet]
